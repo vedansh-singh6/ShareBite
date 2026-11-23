@@ -3,13 +3,15 @@
 // offered, role-aware. Used by donor, NGO, volunteer and admin dashboards so
 // the status pipeline behaves identically everywhere.
 // ---------------------------------------------------------------------------
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import * as matchingService from '../../services/matchingService';
 import {
   MapPin, Clock, ChefHat, Snowflake, Flame, Package, ShieldCheck,
   HandHeart, Truck, CheckCircle2, XCircle, Ban, Building2, User, Phone,
 } from 'lucide-react';
 import { Modal, ConfirmDialog, Button, StatusBadge, DietBadge, Badge, DemoBadge } from '../ui';
 import StatusTimeline from './StatusTimeline';
+import MapView, { openInMaps } from '../map/MapView';
 import { useAuth } from '../../context/AuthContext';
 import { useData, useLookups } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
@@ -27,6 +29,29 @@ export default function DonationDetailModal({ donationId, open, onClose }) {
   const { toast } = useToast();
   const [confirm, setConfirm] = useState(null); // { action, title, message, label, danger }
   const [busy, setBusy] = useState(false);
+  const [matches, setMatches] = useState(null);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState('');
+
+  useEffect(() => {
+    if (!open || !donationId) return;
+    const d = donations.find((x) => x.id === donationId);
+    if (!d || d.status !== STATUS.PENDING) {
+      setMatches(null);
+      setMatchesError('');
+      return;
+    }
+    let cancelled = false;
+    setMatchesLoading(true);
+    setMatchesError('');
+    matchingService
+      .getMatchesForDonation(donationId)
+      .then((res) => { if (!cancelled) setMatches(res); })
+      .catch((err) => { if (!cancelled) setMatchesError(err.message); })
+      .finally(() => { if (!cancelled) setMatchesLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, donationId]);
 
   const donation = donations.find((d) => d.id === donationId);
   if (!donation) return null;
@@ -202,6 +227,31 @@ export default function DonationDetailModal({ donationId, open, onClose }) {
                 <ShieldCheck className="h-4 w-4" /> Donor declared the food safe for consumption.
               </p>
             )}
+
+            {donation.status === STATUS.PENDING && (
+              <div className="mt-5 rounded-2xl border border-charcoal/5 bg-cream/60 p-4">
+                <p className="mb-3 font-display text-sm font-bold text-charcoal">Recommended NGOs (by distance)</p>
+                {matchesLoading && <p className="text-xs text-charcoal/50">Finding nearby NGOs…</p>}
+                {matchesError && <p className="text-xs font-medium text-red-500">{matchesError}</p>}
+                {!matchesLoading && !matchesError && matches && matches.length === 0 && (
+                  <p className="text-xs text-charcoal/55">No verified NGO is currently within range for this donation.</p>
+                )}
+                {!matchesLoading && matches && matches.length > 0 && (
+                  <ul className="space-y-2">
+                    {matches.map((m) => (
+                      <li key={m.ngo.id} className="flex items-start justify-between gap-3 rounded-xl bg-white p-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-charcoal">{m.ngo.orgName}</p>
+                          <p className="text-xs text-charcoal/50">{m.distanceKm} km away</p>
+                          <p className="mt-1 text-[11px] text-charcoal/45">{m.reasons.join(' · ')}</p>
+                        </div>
+                        <span className="chip bg-mint text-forest-700">{m.ngo.verified ? 'Verified' : 'Unverified'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -235,6 +285,37 @@ export default function DonationDetailModal({ donationId, open, onClose }) {
                 </p>
               )}
             </div>
+            {(Number.isFinite(donation.pickupLatitude) && Number.isFinite(donation.pickupLongitude)) && (
+              <div className="mb-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-display text-sm font-bold text-charcoal">Location & route</p>
+                  <button
+                    type="button"
+                    onClick={() => openInMaps(donation.pickupLatitude, donation.pickupLongitude, donation.foodName)}
+                    className="text-xs font-semibold text-forest-600 hover:text-forest-700"
+                  >
+                    Open in maps ↗
+                  </button>
+                </div>
+                <MapView
+                  height={220}
+                  markers={[
+                    { lat: donation.pickupLatitude, lon: donation.pickupLongitude, type: 'pickup', popup: `Pickup: ${donation.pickupAddress}` },
+                    ...(ngo && Number.isFinite(ngo.latitude) && Number.isFinite(ngo.longitude)
+                      ? [{ lat: ngo.latitude, lon: ngo.longitude, type: 'delivery', popup: `Delivery: ${ngo.orgName}` }]
+                      : []),
+                    ...(donation.status === STATUS.PENDING && matches
+                      ? matches.map((m) => ({ lat: m.ngo.latitude, lon: m.ngo.longitude, type: 'ngo', popup: `${m.ngo.orgName} (${m.distanceKm} km)` }))
+                      : []),
+                  ]}
+                  route={
+                    ngo && Number.isFinite(ngo.latitude) && Number.isFinite(ngo.longitude) && donation.status !== STATUS.PENDING
+                      ? [[donation.pickupLatitude, donation.pickupLongitude], [ngo.latitude, ngo.longitude]]
+                      : []
+                  }
+                />
+              </div>
+            )}
             <div className="rounded-2xl border border-charcoal/5 p-4">
               <p className="mb-3 font-display text-sm font-bold text-charcoal">Progress</p>
               <StatusTimeline donation={donation} />

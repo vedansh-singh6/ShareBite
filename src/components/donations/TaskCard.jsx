@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, ArrowDown, Clock, Package, Truck, CheckCircle2, HandHeart, Phone } from 'lucide-react';
+import { MapPin, ArrowDown, Clock, Package, Truck, CheckCircle2, HandHeart, Phone, XCircle } from 'lucide-react';
 import { Card, StatusBadge, DietBadge, Button, ConfirmDialog, Badge } from '../ui';
 import { useAuth } from '../../context/AuthContext';
 import { useData, useLookups } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import * as taskService from '../../services/taskService';
+import * as matchingService from '../../services/matchingService';
+import MapView, { openInMaps } from '../map/MapView';
 import { TASK_STATUS } from '../../lib/constants';
 import { formatQuantity, timeLeft, timeAgo, classNames } from '../../lib/utils';
 
@@ -28,6 +30,8 @@ export default function TaskCard({ task, index = 0, onOpenDonation }) {
   const left = timeLeft(donation.availableUntil);
   const isMine = task.volunteerId === user.id;
 
+  const volunteerDistance = matchingService.haversineKmExport(user.latitude, user.longitude, donation.pickupLatitude, donation.pickupLongitude);
+
   let action = null;
   if (task.status === TASK_STATUS.OPEN) {
     action = {
@@ -40,6 +44,7 @@ export default function TaskCard({ task, index = 0, onOpenDonation }) {
     };
   } else if (isMine && task.status === TASK_STATUS.ASSIGNED) {
     action = {
+      key: 'pickup',
       label: 'Confirm Pickup',
       icon: Package,
       title: 'Confirm pickup?',
@@ -141,32 +146,86 @@ export default function TaskCard({ task, index = 0, onOpenDonation }) {
           </div>
         </div>
 
+        {Number.isFinite(donation.pickupLatitude) && Number.isFinite(donation.pickupLongitude) && (
+          <div className="px-4 pt-3">
+            <MapView
+              height={160}
+              markers={[
+                { lat: donation.pickupLatitude, lon: donation.pickupLongitude, type: 'pickup', popup: 'Pickup' },
+                ...(Number.isFinite(ngo?.latitude) && Number.isFinite(ngo?.longitude)
+                  ? [{ lat: ngo.latitude, lon: ngo.longitude, type: 'delivery', popup: 'Delivery' }]
+                  : []),
+              ]}
+              route={
+                Number.isFinite(ngo?.latitude) && Number.isFinite(ngo?.longitude)
+                  ? [[donation.pickupLatitude, donation.pickupLongitude], [ngo.latitude, ngo.longitude]]
+                  : []
+              }
+            />
+            <button
+              type="button"
+              onClick={() => openInMaps(donation.pickupLatitude, donation.pickupLongitude)}
+              className="mt-1.5 text-xs font-semibold text-forest-600 hover:text-forest-700"
+            >
+              Open in maps ↗
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3 border-t border-charcoal/5 px-4 py-3">
-          <p
-            className={classNames(
-              'flex items-center gap-1.5 text-xs font-semibold',
-              task.status === TASK_STATUS.COMPLETED
-                ? 'text-charcoal/45'
-                : left.expired
-                  ? 'text-red-500'
-                  : left.urgent
-                    ? 'text-orange-600'
-                    : 'text-forest-600'
+          <div className="space-y-0.5">
+            <p
+              className={classNames(
+                'flex items-center gap-1.5 text-xs font-semibold',
+                task.status === TASK_STATUS.COMPLETED
+                  ? 'text-charcoal/45'
+                  : left.expired
+                    ? 'text-red-500'
+                    : left.urgent
+                      ? 'text-orange-600'
+                      : 'text-forest-600'
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {task.status === TASK_STATUS.COMPLETED
+                ? `Completed ${timeAgo(task.updatedAt)}`
+                : left.text}
+            </p>
+            {volunteerDistance !== null && volunteerDistance !== undefined && (
+              <p className="flex items-center gap-1.5 text-xs text-charcoal/50">
+                <MapPin className="h-3.5 w-3.5 text-forest-500" />
+                {volunteerDistance} km from you
+              </p>
             )}
-          >
-            <Clock className="h-3.5 w-3.5" />
-            {task.status === TASK_STATUS.COMPLETED
-              ? `Completed ${timeAgo(task.updatedAt)}`
-              : left.text}
-          </p>
+          </div>
           {task.demo && <span className="text-[10px] font-bold uppercase tracking-wide text-orange-500">Demo</span>}
         </div>
 
         {action && (
-          <div className="p-4 pt-1">
-            <Button size="lg" icon={action.icon} className="w-full" onClick={() => setConfirm(action)}>
+          <div className="flex gap-2 p-4 pt-1">
+            <Button size="lg" icon={action.icon} className="flex-1" onClick={() => setConfirm(action)}>
               {action.label}
             </Button>
+            {task.status === TASK_STATUS.OPEN && (
+              <Button
+                size="lg"
+                variant="secondary"
+                icon={XCircle}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await taskService.declineTask(task.id, user);
+                    toast('Task declined.', 'info');
+                  } catch (err) {
+                    toast(err.message, 'error');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                loading={busy}
+              >
+                Decline
+              </Button>
+            )}
           </div>
         )}
         {isMine && task.status === TASK_STATUS.DELIVERED && (

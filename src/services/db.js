@@ -51,6 +51,29 @@ export function loadDb() {
   if (raw) {
     try {
       db = JSON.parse(raw);
+      // Normalize legacy/partial data so new Phase-2 fields always exist.
+      db.users = db.users || [];
+      db.donations = db.donations || [];
+      db.tasks = db.tasks || [];
+      db.notifications = db.notifications || [];
+      db.credentials = db.credentials || {};
+      db.users.forEach((u) => {
+        if (u.latitude === undefined) u.latitude = null;
+        if (u.longitude === undefined) u.longitude = null;
+        if (u.serviceRadiusKm === undefined) u.serviceRadiusKm = 25;
+        if (u.acceptedCategories === undefined) u.acceptedCategories = [];
+        if (u.minQuantity === undefined) u.minQuantity = 0;
+        if (u.maxQuantity === undefined) u.maxQuantity = 0;
+      });
+      db.donations.forEach((d) => {
+        if (d.pickupLatitude === undefined) d.pickupLatitude = null;
+        if (d.pickupLongitude === undefined) d.pickupLongitude = null;
+        if (d.rejectedBy === undefined) d.rejectedBy = [];
+      });
+      db.tasks.forEach((t) => {
+        if (t.declinedBy === undefined) t.declinedBy = [];
+        if (t.distanceKm === undefined) t.distanceKm = 0;
+      });
       return db;
     } catch {
       /* corrupted — reseed */

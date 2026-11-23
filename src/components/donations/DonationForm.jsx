@@ -19,6 +19,8 @@ const initial = (user) => ({
   availableUntil: toLocalInputValue(new Date(Date.now() + 4 * 3600_000)),
   storage: 'hot',
   pickupAddress: user?.address || '',
+  pickupLatitude: user?.latitude ?? '',
+  pickupLongitude: user?.longitude ?? '',
   instructions: '',
   imageUrl: '',
   safetyDeclared: false,
@@ -53,6 +55,15 @@ export default function DonationForm() {
       er.availableUntil = 'Deadline must be in the future.';
     if (!form.pickupAddress.trim() || form.pickupAddress.trim().length < 10)
       er.pickupAddress = 'Enter a complete pickup address.';
+    const hasLat = form.pickupLatitude !== '' && form.pickupLatitude !== null && form.pickupLatitude !== undefined;
+    const hasLon = form.pickupLongitude !== '' && form.pickupLongitude !== null && form.pickupLongitude !== undefined;
+    if (hasLat !== hasLon) er.pickupLatitude = 'Provide both latitude and longitude, or leave both blank.';
+    if (hasLat) {
+      const la = Number(form.pickupLatitude);
+      const lo = Number(form.pickupLongitude);
+      if (!Number.isFinite(la) || la < -90 || la > 90) er.pickupLatitude = 'Latitude must be between -90 and 90.';
+      if (!Number.isFinite(lo) || lo < -180 || lo > 180) er.pickupLongitude = 'Longitude must be between -180 and 180.';
+    }
     if (!form.safetyDeclared) er.safetyDeclared = 'You must confirm the food safety declaration.';
     setErrors(er);
     return Object.keys(er).length === 0;
@@ -202,6 +213,62 @@ export default function DonationForm() {
               error={errors.pickupAddress}
               rows={2}
             />
+          </Field>
+          <Field
+            label="Pickup location (coordinates)"
+            htmlFor="pickupLatitude"
+            hint="Optional but recommended — enables NGO matching and distance. Use “Use my location” or enter manually."
+          >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Input
+                id="pickupLatitude"
+                type="number"
+                step="any"
+                value={form.pickupLatitude}
+                onChange={set('pickupLatitude')}
+                placeholder="Latitude (e.g. 12.9784)"
+                error={errors.pickupLatitude}
+              />
+              <Input
+                id="pickupLongitude"
+                type="number"
+                step="any"
+                value={form.pickupLongitude}
+                onChange={set('pickupLongitude')}
+                placeholder="Longitude (e.g. 77.6408)"
+                error={errors.pickupLongitude}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  if (!navigator.geolocation) {
+                    toast('Geolocation is not supported by your browser.', 'error');
+                    return;
+                  }
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setForm((f) => ({
+                        ...f,
+                        pickupLatitude: pos.coords.latitude.toFixed(6),
+                        pickupLongitude: pos.coords.longitude.toFixed(6),
+                      }));
+                      toast('Location captured.', 'success');
+                    },
+                    () => toast('Could not read your location. Enter coordinates manually.', 'error'),
+                    { enableHighAccuracy: true, timeout: 10000 }
+                  );
+                }}
+              >
+                Use my location
+              </Button>
+            </div>
+            {(errors.pickupLatitude || errors.pickupLongitude) && (
+              <p className="mt-1 text-xs font-medium text-red-500" role="alert">
+                {errors.pickupLatitude || errors.pickupLongitude}
+              </p>
+            )}
           </Field>
           <Field label="Additional instructions" htmlFor="instructions" hint="Optional — packing, entry gate, contact person…">
             <Textarea

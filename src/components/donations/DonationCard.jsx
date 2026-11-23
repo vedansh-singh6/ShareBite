@@ -5,7 +5,7 @@ import { CATEGORY_LABELS, STATUS } from '../../lib/constants';
 import { formatQuantity, timeLeft, timeAgo, classNames } from '../../lib/utils';
 import { useLookups } from '../../context/DataContext';
 
-export default function DonationCard({ donation, onClick, index = 0, compact = false }) {
+export default function DonationCard({ donation, onClick, index = 0, compact = false, distanceKm }) {
   const { orgName } = useLookups();
   const left = timeLeft(donation.availableUntil);
   const expired = left.expired && donation.status === STATUS.PENDING;
@@ -79,6 +79,12 @@ export default function DonationCard({ donation, onClick, index = 0, compact = f
               <Clock className="h-3.5 w-3.5" />
               {donation.status === STATUS.PENDING ? left.text : `Updated ${timeAgo(donation.updatedAt)}`}
             </p>
+            {distanceKm !== undefined && distanceKm !== null && (
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-charcoal/60">
+                <MapPin className="h-3.5 w-3.5 text-forest-500" />
+                {distanceKm} km from you
+              </p>
+            )}
           </div>
         </div>
       </Card>

@@ -4,7 +4,7 @@
 // one role (e.g. NGO accepting) instantly updates all other dashboards.
 // In flask mode it polls the API on an interval + on window focus.
 // ---------------------------------------------------------------------------
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { IS_MOCK } from '../services/apiClient';
 import { subscribe, getDb, loadDb } from '../services/db';
 import * as donationService from '../services/donationService';
@@ -51,22 +51,22 @@ export function DataProvider({ children }) {
     };
   }, [refreshRemote]);
 
-  let value;
-  if (IS_MOCK) {
-    const db = getDb();
-    value = {
-      donations: db.donations,
-      tasks: db.tasks,
-      users: db.users,
-      notifications: db.notifications,
-      loading: false,
-      error: null,
-      version,
-      refresh: () => {},
-    };
-  } else {
-    value = { ...remote, notifications: [], version: 0, refresh: refreshRemote };
-  }
+  const value = useMemo(() => {
+    if (IS_MOCK) {
+      const db = getDb();
+      return {
+        donations: db.donations,
+        tasks: db.tasks,
+        users: db.users,
+        notifications: db.notifications,
+        loading: false,
+        error: null,
+        version,
+        refresh: () => {},
+      };
+    }
+    return { ...remote, notifications: [], version: 0, refresh: refreshRemote };
+  }, [version, remote, refreshRemote]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

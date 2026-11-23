@@ -27,12 +27,14 @@ def create_app(config_class=Config):
     from routes_tasks import bp as tasks_bp
     from routes_users import bp as users_bp
     from routes_notifications import bp as notifications_bp
+    from routes_ngos import bp as ngos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(donations_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(ngos_bp)
 
     @app.get("/api/health")
     def health():

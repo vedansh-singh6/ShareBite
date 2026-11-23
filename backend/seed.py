@@ -34,23 +34,33 @@ def run():
         user("usr_admin", "admin", "Platform Admin", "admin@sharebite.demo", phone="+91 98000 00001")
         user("usr_donor1", "donor", "Rohit Sharma", "donor@sharebite.demo",
              org_name="Spice Garden Restaurant", donor_type="restaurant",
-             address="12 MG Road, Indiranagar, Bengaluru 560038", phone="+91 98000 00002")
+             address="12 MG Road, Indiranagar, Bengaluru 560038", phone="+91 98000 00002",
+             latitude=12.9784, longitude=77.6408)
         user("usr_donor2", "donor", "Meera Iyer", "hostel@sharebite.demo",
              org_name="Green Valley Hostel", donor_type="hostel",
-             address="4th Cross, Yelahanka New Town, Bengaluru 560064", phone="+91 98000 00003")
+             address="4th Cross, Yelahanka New Town, Bengaluru 560064", phone="+91 98000 00003",
+             latitude=13.1007, longitude=77.5963)
         user("usr_ngo1", "ngo", "Kavita Rao", "ngo@sharebite.demo",
              org_name="Annapurna Foundation", verified=True, registration_number="KA/NGO/2019/04412",
-             address="22 Service Road, Koramangala, Bengaluru 560034", phone="+91 98000 00004")
+             address="22 Service Road, Koramangala, Bengaluru 560034", phone="+91 98000 00004",
+             latitude=12.9352, longitude=77.6245, service_radius_km=15.0,
+             accepted_categories=[], min_quantity=0.0, max_quantity=0.0)
         user("usr_ngo2", "ngo", "Suresh Patil", "hands@sharebite.demo",
              org_name="Helping Hands Trust", verified=True, registration_number="KA/NGO/2021/01187",
-             address="8 Lake View Layout, Hebbal, Bengaluru 560024", phone="+91 98000 00005")
+             address="8 Lake View Layout, Hebbal, Bengaluru 560024", phone="+91 98000 00005",
+             latitude=13.0358, longitude=77.5970, service_radius_km=20.0,
+             accepted_categories=["cooked_meals", "fruits_vegetables", "bakery"], min_quantity=5.0, max_quantity=200.0)
         user("usr_ngo3", "ngo", "Divya Menon", "care@sharebite.demo",
              org_name="Care Collective", verified=False, registration_number="KA/NGO/2024/00932",
-             address="31 Church Street, Shivajinagar, Bengaluru 560051", phone="+91 98000 00006")
+             address="31 Church Street, Shivajinagar, Bengaluru 560051", phone="+91 98000 00006",
+             latitude=12.9850, longitude=77.6050, service_radius_km=10.0,
+             accepted_categories=["packaged"], min_quantity=0.0, max_quantity=0.0)
         user("usr_vol1", "volunteer", "Arjun Mehta", "volunteer@sharebite.demo",
-             area="Indiranagar / Koramangala", vehicle="Two-wheeler with insulated bag", phone="+91 98000 00007")
+             area="Indiranagar / Koramangala", vehicle="Two-wheeler with insulated bag", phone="+91 98000 00007",
+             latitude=12.9500, longitude=77.6300)
         user("usr_vol2", "volunteer", "Priya Nair", "priya@sharebite.demo",
-             area="Yelahanka / Hebbal", vehicle="Car", phone="+91 98000 00008")
+             area="Yelahanka / Hebbal", vehicle="Car", phone="+91 98000 00008",
+             latitude=13.0600, longitude=77.5980)
         db.session.flush()
 
         img = lambda i: f"https://images.unsplash.com/photo-{i}?w=800&q=80&auto=format&fit=crop"
@@ -62,11 +72,13 @@ def run():
 
         def donation(did, donor, name, cat, qty, unit, status, created_h, img_i,
                      ngo=None, vol=None, storage="hot", diet="veg"):
+            donor_user = User.query.get(donor)
             d = Donation(
                 id=did, donor_id=donor, food_name=name, category=cat, diet=diet,
                 quantity=qty, unit=unit, prepared_at=hours_ago(created_h + 1),
                 available_until=hours_ahead(4) if status == "pending" else hours_ago(created_h - 3),
-                storage=storage, pickup_address=User.query.get(donor).address,
+                storage=storage, pickup_address=donor_user.address,
+                pickup_latitude=donor_user.latitude, pickup_longitude=donor_user.longitude,
                 image_url=img(imgs[img_i]), safety_declared=True, status=status,
                 accepted_by=ngo, volunteer_id=vol, rejected_by=[],
                 created_at=hours_ago(created_h), updated_at=hours_ago(max(created_h - 2, 0)),

@@ -89,3 +89,18 @@ def confirm_receipt(donation_id):
         return jsonify(svc.confirm_receipt(donation_id, g.user).to_dict())
     except svc.WorkflowError as e:
         return _err(e)
+
+
+@bp.get("/<donation_id>/matches")
+@auth_required
+def matches(donation_id):
+    donation = Donation.query.get(donation_id)
+    if not donation:
+        return jsonify({"error": "Donation not found."}), 404
+    # Only donor owner, NGOs, or admin can view matches
+    if g.user.role == "donor" and donation.donor_id != g.user.id:
+        return jsonify({"error": "You do not have permission."}), 403
+    try:
+        return jsonify(svc.match_ngos_for_donation(donation))
+    except svc.WorkflowError as e:
+        return _err(e)

@@ -16,6 +16,12 @@ class Config:
         "mysql+pymysql://root:password@localhost:3306/sharebite",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 280}
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+        "pool_size": 10,
+        "max_overflow": 20,
+        "connect_args": {"connect_timeout": 10},
+    }
 
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

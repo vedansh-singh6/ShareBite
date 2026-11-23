@@ -22,12 +22,16 @@ export default function VolunteerDashboard() {
   const stats = useMemo(() => volunteerStats(tasks, user.id), [tasks, user.id]);
 
   const openTasks = useMemo(() => tasks.filter((t) => t.status === TASK_STATUS.OPEN), [tasks]);
+  const availableTasks = useMemo(
+    () => tasks.filter((t) => t.status === TASK_STATUS.OPEN && !(t.declinedBy || []).includes(user.id)),
+    [tasks, user.id]
+  );
   const myActive = useMemo(
     () => tasks.filter((t) => t.volunteerId === user.id && [TASK_STATUS.ASSIGNED, TASK_STATUS.PICKED_UP, TASK_STATUS.DELIVERED].includes(t.status)),
     [tasks, user.id]
   );
 
-  const list = tab === 'available' ? openTasks : myActive;
+  const list = tab === 'available' ? availableTasks : myActive;
 
   return (
     <DashboardShell
@@ -44,7 +48,7 @@ export default function VolunteerDashboard() {
       <Tabs
         className="mt-6 mb-5 w-full sm:w-auto"
         tabs={[
-          { value: 'available', label: 'Available Tasks', count: openTasks.length },
+          { value: 'available', label: 'Available Tasks', count: availableTasks.length },
           { value: 'active', label: 'My Active Tasks', count: myActive.length },
         ]}
         active={tab}

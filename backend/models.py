@@ -39,6 +39,14 @@ class User(db.Model):
     # Donor fields
     org_name = db.Column(db.String(160), default="")
     donor_type = db.Column(db.String(30), default="")
+    # Location (shared by all roles; donor pickup origin / NGO base / volunteer area)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    # NGO matching configuration
+    service_radius_km = db.Column(db.Float, default=25.0)
+    accepted_categories = db.Column(db.JSON, default=list)  # list of food category values
+    min_quantity = db.Column(db.Float, default=0.0)
+    max_quantity = db.Column(db.Float, default=0.0)  # 0 = no upper limit
     # NGO fields
     registration_number = db.Column(db.String(60), default="")
     verified = db.Column(db.Boolean, default=False)
@@ -68,6 +76,12 @@ class User(db.Model):
             "verified": self.verified,
             "area": self.area,
             "vehicle": self.vehicle,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "serviceRadiusKm": self.service_radius_km,
+            "acceptedCategories": self.accepted_categories or [],
+            "minQuantity": self.min_quantity,
+            "maxQuantity": self.max_quantity,
         }
 
 
@@ -85,6 +99,8 @@ class Donation(db.Model):
     available_until = db.Column(db.DateTime, nullable=False)
     storage = db.Column(db.String(20), nullable=False)
     pickup_address = db.Column(db.String(300), nullable=False)
+    pickup_latitude = db.Column(db.Float, nullable=True)
+    pickup_longitude = db.Column(db.Float, nullable=True)
     instructions = db.Column(db.Text, default="")
     image_url = db.Column(db.Text, default="")
     safety_declared = db.Column(db.Boolean, default=False)
@@ -118,6 +134,8 @@ class Donation(db.Model):
             "availableUntil": self.available_until.isoformat() if self.available_until else None,
             "storage": self.storage,
             "pickupAddress": self.pickup_address,
+            "pickupLatitude": self.pickup_latitude,
+            "pickupLongitude": self.pickup_longitude,
             "instructions": self.instructions,
             "imageUrl": self.image_url,
             "safetyDeclared": self.safety_declared,
@@ -158,6 +176,8 @@ class CollectionTask(db.Model):
     donation_id = db.Column(db.String(40), db.ForeignKey("donations.id"), nullable=False, index=True)
     status = db.Column(db.String(30), default="open", nullable=False, index=True)
     volunteer_id = db.Column(db.String(40), db.ForeignKey("users.id"), nullable=True)
+    declined_by = db.Column(db.JSON, default=list)  # volunteer ids who declined
+    distance_km = db.Column(db.Float, default=0.0)  # pickup -> delivery distance
     pickup_address = db.Column(db.String(300), default="")
     delivery_address = db.Column(db.String(300), default="")
     created_at = db.Column(db.DateTime, default=utcnow)
@@ -172,6 +192,8 @@ class CollectionTask(db.Model):
             "donationId": self.donation_id,
             "status": self.status,
             "volunteerId": self.volunteer_id,
+            "declinedBy": self.declined_by or [],
+            "distanceKm": self.distance_km or 0.0,
             "pickupAddress": self.pickup_address,
             "deliveryAddress": self.delivery_address,
             "createdAt": self.created_at.isoformat() if self.created_at else None,

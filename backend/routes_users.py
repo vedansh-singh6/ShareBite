@@ -28,8 +28,13 @@ def get_user(user_id):
 @auth_required
 def update_me():
     data = request.get_json(silent=True) or {}
-    allowed = {"name", "phone", "address", "orgName", "area", "vehicle", "donorType"}
-    mapping = {"orgName": "org_name", "donorType": "donor_type"}
+    allowed = {"name", "phone", "address", "orgName", "area", "vehicle", "donorType",
+               "latitude", "longitude", "serviceRadiusKm", "acceptedCategories",
+               "minQuantity", "maxQuantity"}
+    mapping = {"orgName": "org_name", "donorType": "donor_type",
+               "serviceRadiusKm": "service_radius_km",
+               "acceptedCategories": "accepted_categories",
+               "minQuantity": "min_quantity", "maxQuantity": "max_quantity"}
     for key, value in data.items():
         if key in allowed:
             setattr(g.user, mapping.get(key, key), value)

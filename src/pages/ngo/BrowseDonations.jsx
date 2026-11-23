@@ -8,11 +8,13 @@ import { NGO_NAV } from './NgoDashboard';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { FOOD_CATEGORIES, STATUS } from '../../lib/constants';
+import * as matchingService from '../../services/matchingService';
 
 const SORTS = [
   { value: 'urgent', label: 'Most urgent first' },
   { value: 'newest', label: 'Newest first' },
   { value: 'quantity', label: 'Largest quantity' },
+  { value: 'nearest', label: 'Nearest first' },
 ];
 
 export default function BrowseDonations() {
@@ -42,11 +44,14 @@ export default function BrowseDonations() {
       );
     }
     const meals = (d) => (d.unit === 'meals' ? d.quantity : d.quantity * 2.5);
+    const dist = (d) =>
+      matchingService.haversineKmExport(user.latitude, user.longitude, d.pickupLatitude, d.pickupLongitude);
     if (sort === 'urgent') list = [...list].sort((a, b) => a.availableUntil.localeCompare(b.availableUntil));
     if (sort === 'newest') list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     if (sort === 'quantity') list = [...list].sort((a, b) => meals(b) - meals(a));
-    return list;
-  }, [donations, user.id, query, category, diet, sort]);
+    if (sort === 'nearest') list = [...list].sort((a, b) => (dist(a) ?? 9999) - (dist(b) ?? 9999));
+    return list.map((d) => ({ ...d, _distance: dist(d) }));
+  }, [donations, user.id, query, category, diet, sort, user.latitude, user.longitude]);
 
   const hasFilters = query || category !== 'all' || diet !== 'all';
   const clearFilters = () => { setQuery(''); setCategory('all'); setDiet('all'); };
@@ -109,7 +114,7 @@ export default function BrowseDonations() {
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {available.map((d, i) => (
-            <DonationCard key={d.id} donation={d} index={i} onClick={() => setSelected(d.id)} />
+            <DonationCard key={d.id} donation={d} index={i} distanceKm={d._distance} onClick={() => setSelected(d.id)} />
           ))}
         </div>
       )}

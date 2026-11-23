@@ -84,6 +84,19 @@ export async function getForNgo(ngoId) {
 export async function create(payload, donor) {
   if (IS_MOCK) {
     await delay(350);
+    // Compute target NGOs before mutating (matching may be async).
+    let preTargetNgos = null;
+    const preLat = payload.pickupLatitude === '' || payload.pickupLatitude === null || payload.pickupLatitude === undefined ? null : Number(payload.pickupLatitude);
+    const preLon = payload.pickupLongitude === '' || payload.pickupLongitude === null || payload.pickupLongitude === undefined ? null : Number(payload.pickupLongitude);
+    if (Number.isFinite(preLat) && Number.isFinite(preLon)) {
+      try {
+        const { getNearby } = await import('./matchingService');
+        const matches = await getNearby(preLat, preLon, { radius: 100, category: payload.category, quantity: Number(payload.quantity) });
+        if (matches.length) preTargetNgos = matches.map((m) => m.ngo.id);
+      } catch {
+        /* fall back to all NGOs */
+      }
+    }
     return mutate((db) => {
       if (!payload.safetyDeclared) {
         throw new Error('You must confirm the food safety declaration.');
@@ -100,6 +113,8 @@ export async function create(payload, donor) {
         availableUntil: new Date(payload.availableUntil).toISOString(),
         storage: payload.storage,
         pickupAddress: payload.pickupAddress.trim(),
+        pickupLatitude: preLat,
+        pickupLongitude: preLon,
         instructions: (payload.instructions || '').trim(),
         imageUrl: payload.imageUrl || '',
         safetyDeclared: true,
@@ -119,7 +134,8 @@ export async function create(payload, donor) {
         throw new Error('"Available until" must be after the preparation time.');
       }
       db.donations.unshift(donation);
-      pushNotification(db, ngoIds(db), {
+      const targetNgos = preTargetNgos || ngoIds(db);
+      pushNotification(db, targetNgos, {
         title: 'New donation available',
         body: `${donor.orgName || donor.name} listed ${donation.quantity} ${donation.unit} of ${donation.foodName}.`,
         donationId: donation.id,
@@ -174,7 +190,25 @@ export async function accept(donationId, ngo) {
         body: `${ngo.orgName} accepted "${donation.foodName}". A volunteer will be assigned shortly.`,
         donationId: donation.id,
       });
-      pushNotification(db, volunteerIds(db), {
+      // Notify eligible (nearby) volunteers when coordinates are available.
+      let targetVols = volunteerIds(db);
+      if (Number.isFinite(donation.pickupLatitude) && Number.isFinite(donation.pickupLongitude)) {
+        const nearby = volunteerIds(db).filter((vid) => {
+          const v = db.users.find((u) => u.id === vid);
+          if (!v || !Number.isFinite(v.latitude) || !Number.isFinite(v.longitude)) return true;
+          // reuse haversine
+          const R = 6371;
+          const toRad = (d) => (d * Math.PI) / 180;
+          const p1 = toRad(donation.pickupLatitude), p2 = toRad(v.latitude);
+          const dphi = toRad(v.latitude - donation.pickupLatitude);
+          const dl = toRad(v.longitude - donation.pickupLongitude);
+          const a = Math.sin(dphi / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+          const dist = 2 * R * Math.asin(Math.sqrt(a));
+          return dist <= 30;
+        });
+        if (nearby.length) targetVols = nearby;
+      }
+      pushNotification(db, targetVols, {
         title: 'New collection task nearby',
         body: `${donation.foodName} — pickup at ${donation.pickupAddress.split(',')[0]}, delivery to ${ngo.orgName}.`,
         donationId: donation.id,
