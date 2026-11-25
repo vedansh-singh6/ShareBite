@@ -8,8 +8,10 @@ import axios from 'axios';
 export const API_MODE = import.meta.env?.VITE_API_MODE || 'mock';
 export const IS_MOCK = API_MODE !== 'flask';
 
+export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api';
+
 export const http = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });

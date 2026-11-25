@@ -7,13 +7,13 @@ import { Button, Card, Field, Input, PasswordInput, DemoBadge } from '../../comp
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { ROLE_HOME } from '../../lib/constants';
-import { IS_MOCK } from '../../services/apiClient';
+
 
 const DEMO_ACCOUNTS = [
-  { role: 'Donor', email: 'donor@sharebite.demo', icon: UtensilsCrossed, desc: 'Spice Garden Restaurant' },
-  { role: 'NGO', email: 'ngo@sharebite.demo', icon: HeartHandshake, desc: 'Annapurna Foundation' },
-  { role: 'Volunteer', email: 'volunteer@sharebite.demo', icon: Bike, desc: 'Arjun Mehta' },
-  { role: 'Admin', email: 'admin@sharebite.demo', icon: ShieldCheck, desc: 'Platform admin' },
+  { role: 'Admin', name: 'ShareBite Admin', email: 'admin@sharebite.demo', password: 'Admin@123', icon: ShieldCheck, desc: 'Full platform access' },
+  { role: 'Food Donor', name: 'Rahul Sharma', email: 'donor@sharebite.demo', password: 'Donor@123', icon: UtensilsCrossed, desc: "Rahul's Kitchen" },
+  { role: 'NGO', name: 'Helping Hands NGO', email: 'ngo@sharebite.demo', password: 'Ngo@123', icon: HeartHandshake, desc: 'Helping Hands NGO' },
+  { role: 'Volunteer', name: 'Arjun Kumar', email: 'volunteer@sharebite.demo', password: 'Volunteer@123', icon: Bike, desc: 'Indiranagar / Koramangala' },
 ];
 
 export default function Login() {
@@ -108,35 +108,59 @@ export default function Login() {
             </p>
           </Card>
 
-          {IS_MOCK && (
-            <Card className="mt-5 p-6">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="flex items-center gap-1.5 font-display text-sm font-bold text-charcoal">
-                  <Sparkles className="h-4 w-4 text-accent" /> Try a demo account
-                </p>
-                <DemoBadge />
-              </div>
-              <p className="mb-4 text-xs text-charcoal/50">
-                One click fills the credentials — password is <code className="rounded bg-charcoal/5 px-1.5 py-0.5 font-mono">demo1234</code> for all demo accounts.
+          <Card className="mt-5 p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 font-display text-sm font-bold text-charcoal">
+                <Sparkles className="h-4 w-4 text-accent" /> Explore Demo Accounts
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <DemoBadge />
+            </div>
+            <p className="mb-4 text-xs text-charcoal/50">
+              Click any account to log in instantly. Credentials are also shown for manual entry.
+            </p>
+              <div className="space-y-2">
                 {DEMO_ACCOUNTS.map((a) => (
-                  <button
+                  <div
                     key={a.role}
-                    onClick={() => doLogin(a.email, 'demo1234')}
-                    disabled={busy}
-                    className="flex items-center gap-2.5 rounded-xl border border-charcoal/10 bg-white p-3 text-left transition-all hover:border-forest-300 hover:bg-forest-50 disabled:opacity-50"
+                    className="rounded-xl border border-charcoal/10 bg-white p-3"
                   >
-                    <a.icon className="h-4 w-4 shrink-0 text-forest-600" />
-                    <span>
-                      <span className="block text-sm font-bold text-charcoal">{a.role}</span>
-                      <span className="block truncate text-[11px] text-charcoal/50">{a.desc}</span>
-                    </span>
-                  </button>
+                    <div className="mb-2 flex items-center gap-2.5">
+                      <a.icon className="h-4 w-4 shrink-0 text-forest-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-charcoal">{a.role} — {a.name}</p>
+                        <p className="text-[11px] text-charcoal/50">{a.desc}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard?.writeText(a.email); toast(`Email copied: ${a.email}`, 'success'); }}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-charcoal/10 bg-cream px-3 py-1.5 text-xs transition-colors hover:border-forest-300"
+                      >
+                        <span className="truncate font-mono text-charcoal/80">{a.email}</span>
+                        <span className="shrink-0 font-semibold text-forest-600">Copy</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard?.writeText(a.password); toast('Password copied.', 'success'); }}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-charcoal/10 bg-cream px-3 py-1.5 text-xs transition-colors hover:border-forest-300"
+                      >
+                        <span className="truncate font-mono text-charcoal/80">{a.password}</span>
+                        <span className="shrink-0 font-semibold text-forest-600">Copy</span>
+                      </button>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full"
+                      loading={busy}
+                      onClick={() => doLogin(a.email, a.password)}
+                    >
+                      Login as {a.role}
+                    </Button>
+                  </div>
                 ))}
               </div>
             </Card>
-          )}
 
           <p className="mt-6 text-center text-xs text-charcoal/40">
             <Link to="/" className="hover:text-forest-600">← Back to home</Link>

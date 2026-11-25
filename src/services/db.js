@@ -140,7 +140,7 @@ export async function verifyCredentials(userId, password) {
   if (!cred) {
     // Demo accounts share a known demo password until first login sets creds.
     const user = db.users.find((u) => u.id === userId);
-    if (user?.demo && password === DEMO_PASSWORD) {
+    if (user?.demo && password === (user.demoPassword || DEMO_PASSWORD)) {
       await setCredentials(userId, password);
       return true;
     }
